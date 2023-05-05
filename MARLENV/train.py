@@ -35,12 +35,12 @@ def parse_args():
     # Core training parameters
     parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for Adam optimizer")
     parser.add_argument("--gamma", type=float, default=0.95, help="discount factor")
-    parser.add_argument("--batch_size", type=int, default=64, help="number of episodes to optimize at the same time")
+    parser.add_argument("--batch_size", type=int, default=32, help="number of episodes to optimize at the same time")
     parser.add_argument("--num_units", type=int, default=64, help="number of units in the mlp")
     # Checkpointing
-    parser.add_argument("--SR_threshold", type=int, default=10000, help="maximum steps length")
+    parser.add_argument("--SR_threshold", type=int, default=400, help="maximum steps length")
     parser.add_argument("--save-dir", type=str, default="./tmp/", help="directory in which training state and model should be saved")
-    parser.add_argument("--save-rate", type=int, default=1000, help="save model once every time this many episodes are completed")
+    parser.add_argument("--save-rate", type=int, default=100, help="save model once every time this many episodes are completed")
     parser.add_argument("--load-dir", type=str, default="", help="directory in which training state and model are loaded")
     # parser.add_argument("--restore", action="store_true", default=False)
     return parser.parse_args()
@@ -109,6 +109,19 @@ def train(arglist, num_nodes):
 
             # Loop until steps up
             while True:
+                if step % 200 == 0:
+                    env = EnvDrones(num_nodes, sr_rate)   
+                    env.Init()
+                    print(env.buffer_array)
+                    # Get intial obs
+                    obs_n = []
+                    for i in range(num_agents):
+                        obs_n.append(env._get_obs(i))
+                    # Initialize old matrixes
+                    old_thr = 0
+                    old_lst = 0
+                    obs_shape_n = [env.observation_space[i].shape for i in range(num_agents)]
+            
                 # get action
                 action_n = [agent.action(obs) for agent, obs in zip(trainers,obs_n)]
                 new_obs_n, rew_n, delay_n = env.step(action_n)
@@ -162,22 +175,22 @@ def train(arglist, num_nodes):
                 
                 # Break the simulation and Save the results
                 if step == arglist.SR_threshold:
-                    writer = pd.ExcelWriter('./output/DEL_train.xlsx')
+                    writer = pd.ExcelWriter('./output/DEL_train'+str(num_nodes)+'.xlsx')
                     pd.DataFrame(agent_delays).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
 
-                    writer = pd.ExcelWriter('./output/THR_train.xlsx')
+                    writer = pd.ExcelWriter('./output/THR_train'+str(num_nodes)+'.xlsx')
                     pd.DataFrame(THR).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
 
-                    writer = pd.ExcelWriter('./output/LST_train.xlsx')
+                    writer = pd.ExcelWriter('./output/LST_train'+str(num_nodes)+'.xlsx')
                     pd.DataFrame(LST).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
 
-                    writer = pd.ExcelWriter('./output/REW_train.xlsx')
+                    writer = pd.ExcelWriter('./output/REW_train'+str(num_nodes)+'.xlsx')
                     pd.DataFrame(agent_rewards).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
