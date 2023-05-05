@@ -1,6 +1,7 @@
 # MADDPG_MAC
-## This project contains **three** folders: MADDPG, MARLENV and MARLENV_baseline.
-MADDPG is the algorithm folder, MARLENV is the simulation folder with the algorithm, MARLENV_baseline is the one without the algorithm.
+MADDPG is the algorithm folder, MARLENV is the simulation folder with the algorithm.
+
+# Install repositories first
 To use the project, you may need to **install those repositories**:
 python, tensorflow, gym, numpy, pandas, time, random, sklearn, matplotlib, openpyxl
 If you’re using TensorFlow 2, then no need to change the import codes/lines in “MARLENV”
