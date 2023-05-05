@@ -1,7 +1,7 @@
 # MADDPG_MAC
 MADDPG is the algorithm folder, MARLENV is the simulation folder with the algorithm.
 
-# Install repositories first
+## Install repositories first
 To use the project, you may need to **install those repositories**:
 python, tensorflow, gym, numpy, pandas, time, random, sklearn, matplotlib, openpyxl
 If you’re using TensorFlow 2, then no need to change the import codes/lines in “MARLENV”
