@@ -5,9 +5,10 @@ To use the project, you may need to **install those repositories**:
 python, tensorflow, gym, numpy, pandas, time, random, sklearn, matplotlib, openpyxl
 If you’re using TensorFlow 2, then no need to change the import codes/lines in “MARLENV”
 
-## Then **install MADDPG**, in the command line, type: > pip install -e [your MADDPG directory]
-Third, go to your MARLENV folder and type: > python train.py to train the model.
-Last, after training, type:> python test.py to test the model.
+## Then **install MADDPG**
+In the command line, type: `pip install -e [your MADDPG directory]`
+Third, go to your MARLENV folder and type: `python train.py` to train the model.
+Last, after training, type: `python test.py` to test the model.
 This algorithm was built using [GitHub Pages](https://github.com/openai/maddpg).
 
 ## Within **xxx_baseline.py**:
