@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument("--num_units", type=int, default=64, help="number of units in the mlp")
     # Checkpointing
     parser.add_argument("--SR_threshold", type=int, default=1000, help="maximum steps length")
-    parser.add_argument("--save-dir", type=str, default="C:/Users/helin/Desktop/tmp_folder/tmp", help="directory in which training state and model should be saved")
+    parser.add_argument("--save-dir", type=str, default="C:/Users/Desktop/tmp_folder/tmp", help="directory in which training state and model should be saved")
     parser.add_argument("--save-rate", type=int, default=100, help="save model once every time this many episodes are completed")
     parser.add_argument("--load-dir", type=str, default="", help="directory in which training state and model are loaded")
     # parser.add_argument("--restore", action="store_true", default=False)
