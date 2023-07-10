@@ -19,7 +19,7 @@ from multi_discrete import MultiDiscrete
 class Drones(object):
     def __init__(self, nodes_position, updated_coverage, buffer_array, current_rate):
         self.pos = nodes_position
-        self.coverage = updated_coverage # Facing angle: [24,156]
+        self.coverage = updated_coverage 
         self.buffer = buffer_array
         self.rate = current_rate
 
@@ -29,7 +29,7 @@ class EnvDrones(object):
         self.map_size = 100 # pixels, bigger than 0 and int
         self.total_num_nodes = 40 # bigger than 0 and int
         self.nums_antenna = 4 # the number of beams
-        self.init_antenna_faced_angle = 0 # in degree [-75,75]
+        self.init_antenna_faced_angle = 90 # in degree [0,180]
         self.init_antenna_half_coverage = 15 # in degree [15,45]
         self.init_awareness = 35 # decide initial beam distance
         self.init_radius = 4 # initial radius of side lobes
@@ -41,8 +41,8 @@ class EnvDrones(object):
         self.max_sr = 40000 # (50Mbps) (1250bit/pkt) Maximum sending rate [pkt/s] (To be the maximum x-axis range)
         self.init_rate = np.array([self.max_sr]*self.agents) # Bandwidth is the tx rate on each node, nodes can determine their own stratagies 
         self.buffer_array = np.zeros([self.agents,3]) # Initialize buffer [total, waiting, just_arrive]
-        self.buffersize = 200000 # (250Mb) pkts in every hop nodes
-        self.datasize = 2400000 # (30000Gb) total pkts in transmission (can be fully tans under ideal scenario)
+        self.buffersize = 60000 # (75Mb) pkts in every hop nodes
+        self.datasize = 2400000 # (3Gb) total pkts in transmission (can be fully tans under ideal scenario)
         self.sr_rate = SR_rate / 100 * self.max_sr # For results figure
         self.action_space = []
         self.lost_pkt = 0 # Summerize amount of lost packets
@@ -62,6 +62,7 @@ class EnvDrones(object):
         self.agent_coverage = np.array([[self.init_antenna_faced_angle, self.init_antenna_half_coverage, self.init_awareness]] * self.agents)
         self.agent_coverage[-1,:] = [0,0,0] 
         [self.agent_position, self.agent_coverage] = self.Agents_init(self.agents, self.agent_coverage, self.max_half_coverage)
+        print('agent_coverage',self.agent_coverage)
         # Buffer of relay nodes
         for i in range(1, self.agents - 1):
             self.buffer_array[i,0] = self.buffersize
@@ -222,7 +223,7 @@ class EnvDrones(object):
             for [a,b] in circle:
                 grid_array = self.Update_grid(grid_array, a, b, 1)
             # Activated pairs have an cone interference area
-            cone = self.Cone_positons(x_position, y_position, bgd_coverage[i, 0], bgd_coverage[i, 1], bgd_coverage[i, 2], grid_size)
+            cone = self.Cone_positons_bgd(x_position, y_position, bgd_coverage[i, 0], bgd_coverage[i, 1], bgd_coverage[i, 2], grid_size)
             for [c,d] in cone:    
                 if [c,d] in circle:continue
                 grid_array = self.Update_grid(grid_array, c, d, 1)
@@ -246,9 +247,20 @@ class EnvDrones(object):
                     ans.append([a,b])
         return ans
 
+    # To find all main lobes for agent nodes
     def Cone_positons(self, x, y, angle, half_beamwidth, d, grid_size):
         ans = []
-        min_angle, max_angle = angle - half_beamwidth - 90, angle + half_beamwidth - 90
+        min_angle, max_angle = angle - half_beamwidth , angle + half_beamwidth
+        if angle < 90:
+            if max_angle > 90:
+                max_angle = 90
+            if min_angle < 0:
+                min_angle = 0
+        else:
+            if max_angle > 180:
+                max_angle = 180
+            if min_angle < 90:
+                min_angle = 90
         min_rad, max_rad = math.radians(min_angle), math.radians(max_angle)
         if min_rad > math.pi:
             min_rad -= 2 * math.pi
@@ -261,23 +273,49 @@ class EnvDrones(object):
                 if b < 0 or b >= grid_size: continue
                 r = math.sqrt((x - a) ** 2 + (y - b) ** 2)         
                 if r <= d:
-                    if min_rad < max_rad and min_rad < math.atan2(b-y, a-x) < max_rad: 
+                    if min_rad < max_rad and min_rad < math.atan2(a-x, b-y) < max_rad: 
                         ans.append([a,b])
-                    if min_rad > max_rad and (-4 < math.atan2(b-y, a-x) < max_rad or min_rad < math.atan2(b-y, a-x) < 4): 
+                    if min_rad > max_rad and (-4 < math.atan2(a-x, b-y) < max_rad or min_rad < math.atan2(b-y, a-x) < 4): 
                         ans.append([a,b])
         return ans
 
+    # To find all main lobes for bgd nodes, no need to consider directional antenna exceed boundary
+    def Cone_positons_bgd(self, x, y, angle, half_beamwidth, d, grid_size):
+        ans = []
+        min_angle, max_angle = angle - half_beamwidth , angle + half_beamwidth
+        min_rad, max_rad = math.radians(min_angle), math.radians(max_angle)
+        if min_rad > math.pi:
+            min_rad -= 2 * math.pi
+        if max_rad > math.pi:
+            max_rad -= 2 * math.pi    
+        # radius generation  
+        for a in range(x-d,x+d+1):
+            if a < 0 or a >= grid_size: continue
+            for b in range(y-d,y+d+1):
+                if b < 0 or b >= grid_size: continue
+                r = math.sqrt((x - a) ** 2 + (y - b) ** 2)         
+                if r <= d:
+                    if min_rad < max_rad and min_rad < math.atan2(a-x, b-y) < max_rad: 
+                        ans.append([a,b])
+                    if min_rad > max_rad and (-4 < math.atan2(a-x, b-y) < max_rad or min_rad < math.atan2(b-y, a-x) < 4): 
+                        ans.append([a,b])
+        return ans
+
+    # Update grids if neccessary, operation == 1 means add degree, operation == 0 means minus degree
     def Update_grid(self, grids, a, b, operation):
         # Add Color
         if operation == 1:
             if grids[a][b] == 0: grids[a][b] = 3 # lightgreen
+            if grids[a][b] == 1 or grids[a][b] == 2: return grids # skip nodes
             else: grids[a][b] += 1
         # Minus Color
         else:
             if grids[a][b] == 3: grids[a][b] = 0 # whitesmoke
             elif grids[a][b] == 0: return grids # return
+            elif grids[a][b] == 1 or grids[a][b] == 2: return grids # skip nodes
             else: grids[a][b] -= 1
         return grids
+        
 ####################
     def Color(self, num):
         # ['whitesmoke','black','blue','lightgreen','yellow','darkorange','red','darkred']
@@ -298,6 +336,7 @@ class EnvDrones(object):
         else:
             return [245,245,245] # whitesmoke
 
+    # Same to 'Get_full_obs', just color the grids
     def Get_full_obs_color(self):
         obs = np.ones((self.map_size, self.map_size, 3))
         for row_number in range(self.map_size):
@@ -305,10 +344,11 @@ class EnvDrones(object):
                 obs[row_number,col_number] = self.Color(self.grid_array[row_number][col_number])
         return obs.astype(int)
 
+    # Same to 'Get_drone_obs', just color the grids
     def Get_drone_obs_color(self, i):
         obs = np.ones((self.map_size, self.map_size, 3))
         drone = self.drone_list[i]
-        angle = drone.coverage[0] - 90 #[-90,90]
+        angle = drone.coverage[0]  #[-90,90]
         coverage = drone.coverage[1]
         radius = drone.coverage[2]
         # Find node surroundings
@@ -328,11 +368,11 @@ class EnvDrones(object):
                 if angle < 0:
                     x = drone.pos[0] + row_number
                     y = drone.pos[1] - col_number
-                    atan2 = -math.atan2(-row_number, col_number) - math.pi/2 # This is correct!
+                    atan2 = -math.atan2(-row_number, col_number) - math.pi/2 # This maybe correct!
                 if angle >= 0:
                     x = drone.pos[0] + col_number
                     y = drone.pos[1] + row_number
-                    atan2 = math.atan2(row_number, col_number) # This is correct!
+                    atan2 = math.atan2(col_number, row_number) # This maybe correct!
                 d = math.sqrt((row_number) ** 2 + (col_number) ** 2)
                 # Reduce from rectangle to circle
                 if d > radius or d < self.init_radius:
@@ -384,12 +424,14 @@ class EnvDrones(object):
                 return obs
         return obs
 
+    # Return buffersize of receivers observations, rate here is only for calculating delays.
     def Get_buffer_obs(self, order):
         # Find downstream node
         if order < self.agents - 1:
             return np.concatenate((self.drone_list[order+1].buffer[:-1], self.drone_list[order].rate), axis = None)
         return np.concatenate((np.array([0,0]), self.drone_list[order].rate), axis = None)
 
+    # Check if all data has been transmitted
     def Check_finish(self):
         ans = 0
         for i in range(self.agents-1):
@@ -400,20 +442,36 @@ class EnvDrones(object):
             return False
         return True
 
+    # Update and calculate actions, observations, rewards, delays, grids and buffers
     def step(self, action_n):
         # action_n format: [[a*5,b*5,c*5]*agents] -- a for facing angle, b for coverage selection, c for rate
         actions = [[] for _ in range(self.agents-1)]
+        # print('action_n',action_n)
         for a, action in enumerate(action_n):
+            # print(action)
+            max1, max2, max3 = [0,0],[0,5],[0,10]
             for b, act in enumerate(action):
-                if round(act) == 1:
-                    actions[a].append(b)
+                if 0 <= b <= 4:
+                    if max1[0] < act:
+                        max1 = [act,b]
+                if 5 <= b <= 9:
+                    if max2[0] < act:
+                        max2 = [act,b]
+                if 10 <= b <= 14:
+                    if max3[0] < act:
+                        max3 = [act,b]
+            actions[a].append(max1[1])
+            actions[a].append(max2[1])
+            actions[a].append(max3[1])
+        print(actions)    
+
         # actions format: [[x,y,z]*agents] - x is [0,4] y is [5,9] z is [10,14]
         for order, agent in enumerate(self.drone_list):
             # No actions on last/destination node
             if order == self.agents - 1:
                 break
             # delta x and delta y for following checks
-            delta_x, delta_y = agent.pos[0]-self.drone_list[order+1].pos[0], agent.pos[1]-self.drone_list[order+1].pos[1]
+            delta_x, delta_y = self.drone_list[order+1].pos[0]-agent.pos[0], self.drone_list[order+1].pos[1]-agent.pos[1]
             # Change antenna coverage and range
             # Range of actions[i][1] is [5,6,7,8,9], 5 means doing nothing
             old_coverage, old_range = agent.coverage[1], agent.coverage[2]
@@ -426,15 +484,12 @@ class EnvDrones(object):
             # Change face angle
             # Range of actions[i][0] is [0,1,2,3,4], 0 means doing nothing
             old_faceangle = agent.coverage[0]
-            if actions[order][1] != 0:
+            if actions[order][0] != 0:
                 agent.coverage[0] = self._set_facing_angle(action_n[order][0], old_faceangle)
                 # Forbiden no coverage area after actions
-                if delta_y >= 0:
-                    if math.radians(agent.coverage[0]-agent.coverage[1]) > math.atan2(delta_y, -delta_x) or math.radians(agent.coverage[0]+agent.coverage[1]) < math.atan2(delta_y, -delta_x):
-                        agent.coverage[0] = old_faceangle
-                if delta_y < 0:
-                    if math.radians(agent.coverage[0]-agent.coverage[1]) > -math.atan2(delta_y, -delta_x) + math.pi/2 or math.radians(agent.coverage[0]+agent.coverage[1]) < -math.atan2(delta_y, -delta_x) + math.pi/2:
-                        agent.coverage[0] = old_faceangle
+                center_angle = math.atan2(delta_x, delta_y)/math.pi*180 
+                if agent.coverage[0] + agent.coverage[1] < center_angle or agent.coverage[0] - agent.coverage[1] > center_angle:
+                    agent.coverage[0] = old_faceangle
 
             # Update grid map
             if old_faceangle != agent.coverage[0] or old_coverage != agent.coverage[1]:
@@ -565,7 +620,7 @@ class EnvDrones(object):
 
             # To change surrounding to toward
             a, b = agent.pos[0], agent.pos[1]
-            ans += 1 - max(min(((self.Check_surrounding_toward(a, b, x, y) - 4) / 6), 1),0)
+            ans += 0 - max(min(((self.Check_surrounding_toward(a, b, x, y) - 4) / 6), 1),0)
 
             # Minus 1 if all buffer occupied (worst), minus 0 if buffer is empty (best)
             if i < self.agents - 2:
