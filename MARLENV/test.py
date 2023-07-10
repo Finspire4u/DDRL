@@ -22,7 +22,9 @@ from maddpg.trainer.maddpg import MADDPGAgentTrainer
 
 
 #### Change your number of nodes HERE! ####
-num_nodes = 7
+num_nodes = 10
+sr_rate = 100
+
 #### Change your test times HERE! ####
 test_times = 10
 
@@ -34,9 +36,10 @@ def parse_args():
     parser.add_argument("--good-policy", type=str, default="maddpg", help="policy for good agents")
     parser.add_argument("--adv-policy", type=str, default="maddpg", help="policy of adversaries")
     # Core training parameters
-    parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for Adam optimizer")
+    parser.add_argument("--lr", type=float, default=0.01, help="learning rate for Adam optimizer")
+    parser.add_argument("--lr2", type=float, default=0.001, help="learning rate for Adam optimizer")
     parser.add_argument("--gamma", type=float, default=0.95, help="discount factor")
-    parser.add_argument("--batch_size", type=int, default=64, help="number of episodes to optimize at the same time")
+    parser.add_argument("--batch_size", type=int, default=32, help="number of episodes to optimize at the same time")
     parser.add_argument("--num_units", type=int, default=64, help="number of units in the mlp")
     # Checkpointing
     parser.add_argument("--SR_threshold", type=int, default=100, help="maximum steps length")
@@ -51,7 +54,8 @@ def mlp_model(input, num_outputs, scope, reuse=False, num_units=64, rnn_cell=Non
     with tf.variable_scope(scope, reuse=reuse):
         out = input
         out = layers.fully_connected(out, num_outputs=num_units, activation_fn=tf.nn.relu)
-        out = layers.fully_connected(out, num_outputs=num_units, activation_fn=tf.nn.relu)
+        out = layers.fully_connected(out, num_outputs=32, activation_fn=tf.nn.relu)
+        out = layers.fully_connected(out, num_outputs=16, activation_fn=tf.nn.relu)
         out = layers.fully_connected(out, num_outputs=num_outputs, activation_fn=None)
         # out = layers.Dense(out, num_units, activation=tf.nn.relu)
         # out = layers.Dense(out, num_units, activation=tf.nn.relu)
@@ -68,9 +72,8 @@ def get_trainers(env, num_agents, obs_shape_n, arglist):
             local_q_func=(arglist.good_policy=='maddpg')))
     return trainers
 
-def test(arglist, num_nodes):
+def test(arglist, num_nodes, sr_rate):
     num_agents = num_nodes - 1
-    sr_rate = 100
 
     THR = []
     REW = []
@@ -83,6 +86,7 @@ def test(arglist, num_nodes):
         tf.reset_default_graph()
         print('###############################################')
         print('Simulation start! sending rate is ', sr_rate)
+        print('Times:', t+1)
         with U.single_threaded_session():
             #Initialize evaluation matrix
             step = 0
@@ -178,22 +182,22 @@ def test(arglist, num_nodes):
                         # print('Whole reward is ', rewards)
                         break
 
-    writer = pd.ExcelWriter('./output/DEL_test.xlsx')
+    writer = pd.ExcelWriter('./output/DEL_test_'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
     pd.DataFrame(DEL).to_excel(writer, 'page_1', float_format = '%0.2f')
     writer.save()
     writer.close()
 
-    writer = pd.ExcelWriter('./output/THR_test.xlsx')
+    writer = pd.ExcelWriter('./output/THR_test_'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
     pd.DataFrame(THR).to_excel(writer, 'page_1', float_format = '%0.2f')
     writer.save()
     writer.close()
 
-    writer = pd.ExcelWriter('./output/LST_test.xlsx')
+    writer = pd.ExcelWriter('./output/LST_test_'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
     pd.DataFrame(LST).to_excel(writer, 'page_1', float_format = '%0.2f')
     writer.save()
     writer.close()
 
-    writer = pd.ExcelWriter('./output/REW_test.xlsx')
+    writer = pd.ExcelWriter('./output/REW_test_'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
     pd.DataFrame(REW).to_excel(writer, 'page_1', float_format = '%0.2f')
     writer.save()
     writer.close()
@@ -201,4 +205,4 @@ def test(arglist, num_nodes):
 
 if __name__ == '__main__':
     arglist = parse_args()
-    test(arglist, num_nodes)
+    test(arglist, num_nodes, sr_rate)
