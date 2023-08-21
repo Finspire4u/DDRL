@@ -41,7 +41,7 @@ class EnvDrones(object):
         self.max_sr = 40000 # (50Mbps) (1250bit/pkt) Maximum sending rate [pkt/s] (To be the maximum x-axis range)
         self.init_rate = np.array([self.max_sr]*self.agents) # Bandwidth is the tx rate on each node, nodes can determine their own stratagies 
         self.buffer_array = np.zeros([self.agents,3]) # Initialize buffer [total, waiting, just_arrive]
-        self.buffersize = 60000 # (75Mb) pkts in every hop nodes
+        self.buffersize = 120000 # (150Mb) pkts in every hop nodes
         self.datasize = 2400000 # (3Gb) total pkts in transmission (can be fully tans under ideal scenario)
         self.sr_rate = SR_rate / 100 * self.max_sr # For results figure
         self.action_space = []
@@ -112,12 +112,12 @@ class EnvDrones(object):
     def Agents_init(self, nums, coverage, max_half_coverage):
         nodes_position = np.array([])
         pairs = np.array([])
-        if nums == 5:
-            x = [5, 23, 41, 59, 77]
-        if nums == 7:
-            x = [5, 18, 31, 44, 57, 70, 83]
-        if nums == 10:
-            x = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]
+        if nums == 4:
+            x = [5, 23, 41, 59]
+        if nums == 6:
+            x = [5, 18, 31, 44, 57, 70]
+        if nums == 8:
+            x = [5, 15, 25, 35, 45, 55, 65, 75]
         for i in range(nums):
             nodes_position = np.append(nodes_position, [x[i], random.randint(35, 65)])
             if i != nums:
@@ -507,26 +507,32 @@ class EnvDrones(object):
         for i, agent in enumerate(self.drone_list):
             if i < self.agents - 1 and agent.buffer[1] != 0:
                 # agent.rate = self.max_sr * max((-0.13*Check_surrounding(self, agent.pos[0], agent.pos[1]) + 1.39), 0.1)
-                # Rate changes following by actions 25%, 50%, 75%, 100%
+                # Rate changes following by actions 40%, 60%, 80%, 100%
                 # Range of actions[i][2] is [10,11,12,13,14], 10 means doing nothing
                 # SR of source node is firm (self.sr_rate)
                 if i == 0:
                     agent.rate = int(self.sr_rate)
                 else:
                     if actions[i][2] != 10:
-                        agent.rate = int(self.max_sr * (actions[i][2]-10) * 0.25)
+                        # agent.rate = int(self.max_sr * ((actions[i][2]-10) * 0.2 + 0.2))
+                        agent.rate = int(self.max_sr * ((actions[i][2]-10) * 0.1 + 0.6))
+
                 # Make sure that buffer won't exceed and won't be negative
                 if agent.rate > agent.buffer[1]:
                     agent.rate = int(agent.buffer[1])
                 # Trans data
                 agent.buffer[1] -= int(agent.rate)
+                # from 4 to 10 or more
+                interference_degree = self.Check_surrounding_toward(self.drone_list[i].pos[0],self.drone_list[i].pos[1], self.drone_list[i+1].pos[0],self.drone_list[i+1].pos[1])
+                # from 0 to 0.5
+                percentage = (interference_degree - 4) / 12
                 # self.drone_list[i+1].buffer[2] += int(agent.rate * (1 - max(min(((self.Check_surrounding(self.drone_list[i+1].pos[0],self.drone_list[i+1].pos[1]) - 4) / 6), 1),0)))
-                self.drone_list[i+1].buffer[2] += int(agent.rate * (1 - max(min(((self.Check_surrounding_toward(self.drone_list[i].pos[0],self.drone_list[i].pos[1], self.drone_list[i+1].pos[0],self.drone_list[i+1].pos[1]) - 4) / 6), 1),0)))
+                self.drone_list[i+1].buffer[2] += int(agent.rate * (1 - max(min(percentage, 0.5),0)))
                 # self.lost_pkt += int(agent.rate * max(min(((self.Check_surrounding(self.drone_list[i+1].pos[0],self.drone_list[i+1].pos[1]) - 4) / 6), 1),0))
-                self.lost_pkt += int(agent.rate * max(min(((self.Check_surrounding_toward(self.drone_list[i].pos[0],self.drone_list[i].pos[1], self.drone_list[i+1].pos[0],self.drone_list[i+1].pos[1]) - 4) / 6), 1),0))
+                self.lost_pkt += int(agent.rate * max(min(percentage, 0.5),0))
                 # Update buffer for calculating delays
                 if self.drone_list[i+1].buffer[1] + self.drone_list[i+1].buffer[2] > self.drone_list[i+1].buffer[0]:
-                    self.lost_pkt += int(agent.rate + self.drone_list[i+1].buffer[1] + self.drone_list[i+1].buffer[2] - self.drone_list[i+1].buffer[0])
+                    self.lost_pkt += int(self.drone_list[i+1].buffer[1] + self.drone_list[i+1].buffer[2] - self.drone_list[i+1].buffer[0])
                     self.drone_list[i+1].buffer[2] = int(self.drone_list[i+1].buffer[0] - self.drone_list[i+1].buffer[1])
 
         # Get obs, reward and delay based on new infos (Rx)
@@ -558,7 +564,7 @@ class EnvDrones(object):
                 self.lost_pkt += int(agent.rate * max(min(((self.Check_surrounding(self.drone_list[i+1].pos[0],self.drone_list[i+1].pos[1]) - 4) / 6), 1),0))
                 # Update buffer for calculating delays
                 if self.drone_list[i+1].buffer[1] + self.drone_list[i+1].buffer[2] > self.drone_list[i+1].buffer[0]:
-                    self.lost_pkt += int(agent.rate + self.drone_list[i+1].buffer[1] + self.drone_list[i+1].buffer[2] - self.drone_list[i+1].buffer[0])
+                    self.lost_pkt += int( self.drone_list[i+1].buffer[1] + self.drone_list[i+1].buffer[2] - self.drone_list[i+1].buffer[0])
                     self.drone_list[i+1].buffer[2] = int(self.drone_list[i+1].buffer[0] - self.drone_list[i+1].buffer[1])
 
         # Get obs, reward and delay based on new infos (Rx)
