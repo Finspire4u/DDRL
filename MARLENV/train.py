@@ -22,7 +22,7 @@ from maddpg.trainer.maddpg import MADDPGAgentTrainer
 
 
 #### Change your number of nodes HERE! ####
-num_nodes = 5
+num_nodes = 8
 
 
 def parse_args():
@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument("--num_units", type=int, default=64, help="number of units in the mlp")
     # Checkpointing
     parser.add_argument("--SR_threshold", type=int, default=1000, help="maximum steps length")
-    parser.add_argument("--save-dir", type=str, default="C:/Users/Desktop/tmp_folder/tmp", help="directory in which training state and model should be saved")
+    parser.add_argument("--save-dir", type=str, default="C:/Users/helin/Desktop/tmp_folder_2/tmp", help="directory in which training state and model should be saved")
     parser.add_argument("--save-rate", type=int, default=100, help="save model once every time this many episodes are completed")
     parser.add_argument("--load-dir", type=str, default="", help="directory in which training state and model are loaded")
     # parser.add_argument("--restore", action="store_true", default=False)
@@ -157,7 +157,8 @@ def train(arglist, num_nodes):
                     a = arglist.save_dir + str(sr_rate)
                     U.save_state(a, step, saver=saver)
                     thr = env.drone_list[-1].buffer[2]
-                    THR.append([thr-old_thr, int(thr-old_thr)/int(arglist.save_rate*env.max_sr)])
+                    # THR.append([thr-old_thr, int(thr-old_thr)/int(arglist.save_rate*env.max_sr)])
+                    THR.append([thr-old_thr, int(thr-old_thr)/int(thr + env.lost_pkt - old_lst)])
                     LST.append(env.lost_pkt - old_lst)
                     print('At {} seconds in real, and {} simulation steps.'.format(round(time.time() - t_start, 1), step))
                     print(env.buffer_array)
@@ -179,27 +180,27 @@ def train(arglist, num_nodes):
                 
                 # Break the simulation and Save the results
                 if step == arglist.SR_threshold:
-                    writer = pd.ExcelWriter('./output/DEL_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
+                    writer = pd.ExcelWriter('C:/Users/helin/Desktop/output_folder_2/DEL_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
                     pd.DataFrame(agent_delays).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
 
-                    writer = pd.ExcelWriter('./output/THR_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
+                    writer = pd.ExcelWriter('C:/Users/helin/Desktop/output_folder_2/THR_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
                     pd.DataFrame(THR).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
 
-                    writer = pd.ExcelWriter('./output/LST_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
+                    writer = pd.ExcelWriter('C:/Users/helin/Desktop/output_folder_2/LST_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
                     pd.DataFrame(LST).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
 
-                    writer = pd.ExcelWriter('./output/REW_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
+                    writer = pd.ExcelWriter('C:/Users/helin/Desktop/output_folder_2/REW_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
                     pd.DataFrame(agent_rewards).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
 
-                    writer = pd.ExcelWriter('./output/Reward_all_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
+                    writer = pd.ExcelWriter('C:/Users/helin/Desktop/output_folder_2/Reward_all_train'+str(num_nodes)+'_'+str(sr_rate)+'.xlsx')
                     pd.DataFrame(rewards).to_excel(writer, 'page_1', float_format = '%0.2f')
                     writer.save()
                     writer.close()
