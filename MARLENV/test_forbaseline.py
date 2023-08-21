@@ -10,17 +10,18 @@ import pandas as pd
 
 
 #### Change your number of nodes HERE! ####
-num_nodes = 7
+num_nodes = 6
+sr_rate = 100
 #### Change your test times HERE! ####
 test_times = 10
 #### Change if you want to add noise later (default 0) ####
 bdg_step = 0
 
 
-def test(num_nodes, bdg_step):
+def test(num_nodes, bdg_step, sr_rate):
     num_agents = num_nodes - 1
     SR_threshold = 100
-    sr_rate = 100
+    
 
     THR = []
     DEL = []
@@ -31,6 +32,7 @@ def test(num_nodes, bdg_step):
     for t in range(test_times):
         print('###############################################')
         print('Simulation start! sending rate is ', sr_rate)
+        print('Time:', t+1)
         # Initialization
         env = EnvDrones(num_nodes, sr_rate)   
         # env.Init(t)
@@ -95,24 +97,24 @@ def test(num_nodes, bdg_step):
         # plt.pause(10)
         # plt.close()
 
-    writer = pd.ExcelWriter('./output/DEL_baseline.xlsx')
+    writer = pd.ExcelWriter('./output/DEL_baseline_'+str(num_nodes)+str(sr_rate)+'.xlsx')
     pd.DataFrame(DEL).to_excel(writer, 'page_1', float_format = '%0.2f')
     writer.save()
     writer.close()
 
-    writer = pd.ExcelWriter('./output/THR_baseline.xlsx')
+    writer = pd.ExcelWriter('./output/THR_baseline_'+str(num_nodes)+str(sr_rate)+'.xlsx')
     pd.DataFrame(THR).to_excel(writer, 'page_1', float_format = '%0.2f')
     writer.save()
     writer.close()
 
-    writer = pd.ExcelWriter('./output/LST_baseline.xlsx')
+    writer = pd.ExcelWriter('./output/LST_baseline_'+str(num_nodes)+str(sr_rate)+'.xlsx')
     pd.DataFrame(LST).to_excel(writer, 'page_1', float_format = '%0.2f')
     writer.save()
     writer.close()
 
 
 if __name__ == '__main__':
-    test(num_nodes, bdg_step)
+    test(num_nodes, bdg_step, sr_rate)
 
 
 
