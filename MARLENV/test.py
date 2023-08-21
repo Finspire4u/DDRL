@@ -22,7 +22,7 @@ from maddpg.trainer.maddpg import MADDPGAgentTrainer
 
 
 #### Change your number of nodes HERE! ####
-num_nodes = 10
+num_nodes = 6
 sr_rate = 100
 
 #### Change your test times HERE! ####
